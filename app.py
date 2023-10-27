@@ -73,7 +73,28 @@ def greeting():
         return jsonify({"message": greet})
     except Exception as e:
         raise CustomException(e,sys)
-    
+
+
+@app.route("/chatbot/client", methods=["POST"])
+def client():
+    try:
+        data = request.get_json()
+        client_type = data.get("client_type")
+
+        welcome_messages = {
+            "1": "Welcome, New client!",
+            "2": "Welcome, existing client!",
+            "3": "Welcome, Job seeker!",
+            "4": "Bye!",
+        }
+
+        message = welcome_messages.get(client_type, "Invalid option. Please choose a valid option.")
+        status_code = 200 if client_type in welcome_messages else 400
+
+        return jsonify({"message": message, "code": status_code})
+
+    except Exception as e:
+        return jsonify({"message": "Internal server error.", "error": str(e), "code": 500})
 
     
 if __name__ == "__main__":
