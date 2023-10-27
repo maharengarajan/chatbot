@@ -1,18 +1,41 @@
 import requests
 import sys
 import os
+import re
+import mysql.connector as conn
 from src.logger import logging
 from src.exception import CustomException
 from ip2geotools.databases.noncommercial import DbIpCity
 from weathermap import Weather
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+from datetime import datetime
 
 
 app = Flask(__name__)
 
 def configure():
     load_dotenv()
+
+configure()
+
+host = os.getenv("database_host_name")
+user_name = os.getenv("database_user_name")
+password = os.getenv("database_user_password")
+database = os.getenv("database_name")
+
+print(host)
+print(user_name)
+print(password)
+print(database)
+# Connection from Python to MySQL
+mydb = conn.connect(host=host,user=user_name,password=password,database=database)
+cursor = mydb.cursor()
+
+
+current_date = datetime.now().date()
+current_time = datetime.now().time()
+
 
 def get_ip_address():
     try:
@@ -95,6 +118,60 @@ def client():
 
     except Exception as e:
         return jsonify({"message": "Internal server error.", "error": str(e), "code": 500})
+    
+
+# this API responsible for collecting user details from new client and save in DB
+@app.route("/chatbot/new_client_details", methods=["POST"])
+def new_client_details():
+    try:
+        data = request.get_json()
+        name = data.get("name")
+        email = data.get("email")
+        contact = data.get("contact")
+
+        if not is_valid_name(name):
+            return jsonify({"message": "Please enter a valid name.", "code": 400})
+
+        if not is_valid_email(email):
+            return jsonify({"message": "Please enter a valid email address.", "code": 400})
+
+        if not is_valid_contact_number(contact):
+            return jsonify({"message": "Please enter a valid contact number.", "code": 400})
+
+        user_details = {"name": name, "email": email, "contact": contact}
+        logging.info(f"user details collected :{user_details}")
+
+        query = "INSERT INTO new_client (DATE, TIME, NAME, EMAIL_ID, CONTACT_NUMBER) VALUES (%s, %s, %s, %s, %s)"
+        values = (current_date, current_time, name, email, contact)
+        cursor.execute(query, values)
+        row_id = cursor.lastrowid  # Get the ID (primary key) of the inserted row
+        mydb.commit()  # Commit the changes to the database
+        logging.info(f"user details saved in database")
+
+        return jsonify(
+            {
+                "message": "User details collected successfully.",
+                "row_id": row_id,
+                "code": 200,
+            }
+        )
+    except Exception as e:
+        return jsonify(
+            {"message": "Internal server error.", "error": str(e), "code": 500}
+        )
+
+
+def is_valid_name(name):
+    return bool(re.match(r"^[A-Za-z\s]+$", name.strip()))
+
+
+def is_valid_email(email):
+    return bool(re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email))
+
+
+def is_valid_contact_number(contact):
+    return bool(re.match(r"^\+?\d{1,3}[-.\s]?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$", contact))
+
 
     
 if __name__ == "__main__":
