@@ -1,0 +1,8 @@
+Flask
+requests
+ip2geotools
+weathermap
+python-dotenv
+
+
+#-e .
