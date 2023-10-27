@@ -4,6 +4,6 @@ ip2geotools
 weathermap
 python-dotenv
 mysql-connector-python
-
+regex
 
 #-e .
